@@ -1,0 +1,261 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/js/all.min.js" integrity="sha256-KzZiKy0DWYsnwMF+X1DvQngQ2/FxF7MF3Ff72XcpuPs=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js" integrity="sha512-s+xg36jbIujB2S2VKfpGmlC3T5V2TF3lY48DX7u2r9XzGzgPsa6wTpOQA7J9iffvdeBN0q9tKzRxVxw1JviZPg==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@0.7.0"></script>
+<script src="{{ site.baseurl }}/js/circle-progress.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js" integrity="sha512-k2GFCTbp9rQU412BStrcD/rlwv1PYec9SNrkbQlo6RZCf75l6KcC3UwDY8H5n5hl4v77IDtIPwOk9Dqjs/mMBQ==" crossorigin="anonymous"></script>
+<!-- <script src = "{{ site.baseurl }}/js/pull-data.js"></script> -->
+<script>
+    $(window).ready(function(){
+        $('#main').animate({opacity: 1}, 700);
+    });
+
+    // Chart defaults
+    Chart.defaults.global.defaultFontFamily = "News Cycle";
+
+    if (screen.width <= 576) {
+        Chart.defaults.global.defaultFontSize = 12;
+        var datalabel_fontsize = 10;
+        $("#subcomm-lb").attr("height", "500");
+        $("#indiv-lb").attr("height", "600");
+
+        var progressRingSize = 250;
+        var progressRingFontSize = "2.2rem News Cycle";
+
+    } else if (screen.width <= 768) {
+        Chart.defaults.global.defaultFontSize = 14;
+        var datalabel_fontsize = 12;
+        $("#subcomm-lb").attr("height", "350");
+        $("#indiv-lb").attr("height", "400");
+
+        var progressRingSize = 300;
+        var progressRingFontSize = "2.6rem News Cycle";
+    
+    } else {
+        Chart.defaults.global.defaultFontSize = 16;
+        var datalabel_fontsize = 14;
+        $("#subcomm-lb").attr("height", "200");
+        $("#indiv-lb").attr("height", "300");
+
+        var progressRingSize = 400;
+        var progressRingFontSize = "3.0rem News Cycle";
+    };
+
+    // Chart error message
+    Chart.plugins.register({
+        afterDraw: function(chart) {
+            //console.log('After draw: ', chart);
+            //console.log('Title: ', chart.options.title.text);
+            //console.log(chart.data.datasets[0].data.length,  chart.canvas.id, chart.data.datasets[0].data);
+            if (chart.data.datasets[0].data.length === 0) {
+                // No data is present
+                var ctx = chart.chart.ctx;
+                var width = chart.chart.width;
+                var height = chart.chart.height/2;
+                chart.clear();
+    
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = "1.6rem 'News Cycle'";
+                ctx.fillStyle = "#6C7580";
+                // chart.options.title.text <=== gets title from chart 
+                // width / 2 <=== centers title on canvas 
+                // 18 <=== aligns text 18 pixels from top, just like Chart.js 
+                // ctx.fillText('My Chart Title', width / 2, 18); // <====   ADDS TITLE
+                ctx.fillText('No data to display.', width / 2, height / 2);
+                ctx.restore();
+            }
+        }
+    });
+
+    // Community 50,000km Progress Circle
+    {% assign commProgress = site.data.commMileage[0].Total %}
+    var comm_progress = $('#comm-progress').circleProgress({
+        value: {{ commProgress }} / 50000,     // Completion here
+        //value: 0.70,
+        size: progressRingSize,
+        startAngle: - Math.PI / 2,
+        fill: {
+            //gradient: ['#1B37DB', '#66fcf1']
+            color: '#090637'
+        }
+    });
+    
+    comm_progress.on('circle-animation-progress', function(e, v) {
+        var obj = $(this).data('circle-progress'),
+            ctx = obj.ctx,
+            s = obj.size,
+            sv = ({{ commProgress }} / 500 * v).toFixed() + "%",
+            fill = obj.arcFill;
+            // fill = "#007bff"
+
+        ctx.save();
+        ctx.font = progressRingFontSize;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = fill;
+        ctx.fillText(sv, s / 2, s / 2);
+        ctx.restore();
+    });
+
+    // Sub-community Leaderboard
+    {% assign subcomm_entries = (site.data.subcommMileage) %}
+    var subcomm_labels = []
+    var subcomm_data = []
+    
+    {% for item in subcomm_entries limit:10 %}
+        subcomm_labels.push("{{ item.Vocation }}");
+        subcomm_data.push({{ item.Total }});
+    {% endfor %}
+
+    // Create bar chart
+    var subcomm_chart = document.getElementById('subcomm-lb').getContext("2d");
+    var subcommChart = new Chart(subcomm_chart, {
+        type: 'horizontalBar',
+        data: {
+            labels: subcomm_labels,
+            datasets: [{
+                borderWidth: 2,
+                borderColor: "transparent",
+                backgroundColor: "#27DDCB",
+                hoverBackgroundColor: "rgba(39,221,203, 0.80)",
+                fill: true,
+                lineTension: 0.1,
+                data: subcomm_data
+            }]
+        },
+        options: {
+            legend: {
+                display: false
+            },
+            tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data){
+                        return "Mileage: " + tooltipItem.xLabel + ' km';
+                    }
+                },
+                displayColors: false
+            },
+            scales: {
+                yAxes: [{
+                    gridLines: {
+                        color: "rgba(0,0,0,0)",
+                        display: false
+                    }
+                }],
+                xAxes: [{
+                    scaleLabel: {
+                        display: true,
+                        //labelString: "Mileage (KM)"
+                    },
+                    gridLines: {
+                        display: false
+                    },
+                    ticks: {
+                        display: false,
+                        suggestedMin: 0
+                    }
+                }]
+            },
+            plugins: {
+                datalabels: {
+                    color: "white",
+                    anchor: 'end',
+                    align: 'left',
+                    font: {
+                        size: datalabel_fontsize
+                    },
+                    padding: {
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        right: -5,
+                    }
+                }
+            }
+        }  
+    });
+
+    // Individual Leaderboard
+    {% assign indiv_entries = (site.data.individualMileageNew) %}
+    var indiv_labels = []
+    var indiv_data = []
+
+    {% for item in indiv_entries limit:10 %}
+        indiv_labels.push("{{ item.Name }}");
+        indiv_data.push({{ item['sum Total'] }});
+    {% endfor %}
+
+    // Create bar chart
+    var indiv_chart = document.getElementById('indiv-lb').getContext("2d");
+    var indivChart = new Chart(indiv_chart, {
+        type: 'horizontalBar',
+        data: {
+            labels: indiv_labels,
+            datasets: [{
+                borderWidth: 2,
+                borderColor: "transparent",
+                backgroundColor: "#ee4c7c",
+                hoverBackgroundColor: "rgba(238, 76, 124, 0.85)",
+                fill: true,
+                lineTension: 0.1,
+                data: indiv_data
+            }]
+        },
+        options: {
+            legend: {
+                display: false
+            },
+            tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data){
+                        return "Mileage: " + tooltipItem.xLabel + ' km';
+                    }
+                },
+                displayColors: false
+            },
+            scales: {
+                yAxes: [{
+                    gridLines: {
+                        color: "rgba(0,0,0,0)",
+                        display: false
+                    }
+                }],
+                xAxes: [{
+                    gridLines:{
+                        color: "rgba(0,0,0,0)",
+                        display: false
+                    },
+                    scaleLabel: {
+                        display: true,
+                        //labelString: "Mileage (KM)"
+                    },
+                    ticks: {
+                        display: false,
+                        suggestedMin: 0
+                    }
+                }]
+            },
+            plugins: {
+                datalabels: {
+                    color: "white",
+                    anchor: 'end',
+                    align: 'left',
+                    font: {
+                        size: datalabel_fontsize
+                    },
+                    padding: {
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        right: -5,
+                    }
+                }
+            }
+        }
+    });
+
+</script>
